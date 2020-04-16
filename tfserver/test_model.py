@@ -12,29 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tfserver import TFModel
-import torch
-import torchvision
-import torchvision.transforms as transforms
 import os
 
-model_dir = model_dir = os.path.join(os.path.dirname(__file__), "example_model")
-MODEL_FILE = "model.pt"
+import numpy as np
+import requests
+from tfserver import TFModel
+import json
+
+model_dir = os.path.join(os.path.dirname(__file__), "example_model/inception_v3")
 
 
 def test_model():
-    server = PyTorchModel("pytorchmodel", "Net", model_dir)
+    server = TFModel("inception_v3", model_dir, "input", "InceptionV3/Predictions/Reshape_1")
     server.load()
 
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                           download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                             shuffle=False, num_workers=2)
-    dataiter = iter(testloader)
-    images, _ = dataiter.next()
+    input_tensor = np.random.normal(-1, 1, [299, 299, 3])
 
-    request = {"instances" : images[0:1].tolist()}
+    request = {"instances": input_tensor.tolist()}
     response = server.predict(request)
-    assert isinstance(response["instances"][0], list)
+    print(response["predictions"])
+
+
+def rest_test_model():
+    url = "http://127.0.0.1:8080/v1/models/inception_v3:predict"
+    input_tensor = np.random.normal(-1, 1, [299, 299, 3])
+    request = {"instances": input_tensor.tolist()}
+    response = requests.post(url, data=json.dumps(request))
+    print(response.json())
+
+if __name__ == '__main__':
+    test_model()
+    # python __main__.py --model_dir=example_model/inception_v3 --model_name=inception_v3  --input_name=input --output_name=InceptionV3/Predictions/Reshape_1
+    rest_test_model()

@@ -34,6 +34,7 @@ setup(
         "kfserving>=0.2.2",
         "argparse >= 1.4.0",
         "numpy >= 1.8.2",
+        "tensorflow >= 1.10.0"
     ],
     tests_require=tests_require,
     extras_require={'test': tests_require}

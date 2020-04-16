@@ -22,12 +22,16 @@ DEFAULT_LOCAL_MODEL_DIR = "/tmp/model"
 
 parser = argparse.ArgumentParser(parents=[kfserving.kfserver.parser])
 parser.add_argument('--model_dir', required=True,
-                    help='A URI pointer to the model directory')
+                    help='The path of the model directory')
 parser.add_argument('--model_name', default=DEFAULT_MODEL_NAME,
                     help='The name that the model is served under.')
+parser.add_argument('--input_name', required=True,
+                    help='The model of input layer name.')
+parser.add_argument('--output_name', required=True,
+                    help='The name of output layer name.')
 args, _ = parser.parse_known_args()
 
 if __name__ == "__main__":
-    model = TFModel(args.model_name, args.model_dir)
+    model = TFModel(args.model_name, args.model_dir, args.input_name, args.output_name)
     model.load()
     kfserving.KFServer().start([model])
