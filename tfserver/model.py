@@ -28,16 +28,16 @@ class TFModel(kfserving.KFModel):
         self.name = name
         self.saved_model_dir = saved_model_dir
         self.metadata = tools.getMetadata(saved_model_dir)
-        self.graph = None
+        # self.graph = tf.Graph()
+        self.sess = tf.Session(graph=tf.Graph())
         self.ready = False
         self._batch_size = 1
 
     # load saved_model file
     def load(self):
-        self.graph = tf.Graph()
-        with tf.Session(graph=self.graph) as sess:
-            tf.saved_model.loader.load(sess, [self.metadata.tag_set], self.saved_model_dir)
-            self.ready = True
+        with self.sess.as_default():
+            tf.saved_model.loader.load(self.sess, [self.metadata.tag_set], self.saved_model_dir)
+        self.ready = True
 
     # predict with signature
     def predict(self, request: Dict) -> Dict:
@@ -53,15 +53,13 @@ class TFModel(kfserving.KFModel):
             signature_name = request['signature_name']
             signature_info = self.metadata.signatute_info[signature_name]
             # TODO 暂时仅支持单个input/output layer
-            input_operator = self.graph.get_tensor_by_name(signature_info.input_tensor[0].name)
-            output_operator = self.graph.get_tensor_by_name(signature_info.output_tensor[0].name)
-
-
+            input_tensor = self.sess.graph.get_tensor_by_name(signature_info.input_tensor[0].name)
+            output_tensor = self.sess.graph.get_tensor_by_name(signature_info.output_tensor[0].name)
         except Exception as e:
             raise Exception("Failed to get signature %s" % e)
         try:
-            with tf.Session(graph=self.graph) as sess:
-                results = sess.run(output_operator, feed_dict={input_operator: inputs})
+            with self.sess.as_default():
+                results = self.sess.run(input_tensor, feed_dict={output_tensor: inputs})
                 return {"predictions": results.tolist()}
         except Exception as e:
             raise Exception("Failed to predict %s" % e)
