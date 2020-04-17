@@ -1,0 +1,7 @@
+README.md
+setup.py
+tfserver.egg-info/PKG-INFO
+tfserver.egg-info/SOURCES.txt
+tfserver.egg-info/dependency_links.txt
+tfserver.egg-info/requires.txt
+tfserver.egg-info/top_level.txt

@@ -29,31 +29,19 @@ class TFModel(kfserving.KFModel):
         self.name = name
         self.saved_model_dir = saved_model_dir
         self.ready = False
-        self.graph = None
+        self.meta_graph_def = None
         self._batch_size = 1
-        # TODO mlu100提供的模型非saved_model格式，无法获取signature等信息
         self.metadata = tools.getMetadata(saved_model_dir)
 
-    # load_sample_pb
-    def load(self):
-        graph = tf.Graph()
-        graph_def = tf.GraphDef()
-        model_file = os.path.join(self.saved_model_dir, TENSORFLOW_MODEL_FILE)
-        with open(model_file, "rb") as f:
-            graph_def.ParseFromString(f.read())
-        with graph.as_default():
-            tf.import_graph_def(graph_def)
-        self.graph = graph
-        self.ready = True
-
     # load saved_model file
-    def load_saved_model(self):
+    def load(self):
         model_file = os.path.join(self.saved_model_dir, TENSORFLOW_MODEL_FILE)
-
         with tf.Session(graph=tf.Graph()) as sess:
-            tf.saved_model.loader.load(sess, ["serve"], model_file)
-        self.ready = True
+            meta_graph_def = tf.saved_model.loader.load(sess, ["serve"], model_file)
+            self.meta_graph_def = meta_graph_def
+            self.ready = True
 
+    # predict with signature
     def predict(self, request: Dict) -> Dict:
         inputs = []
         try:
@@ -62,35 +50,7 @@ class TFModel(kfserving.KFModel):
             input_shape = tuple(tools.flatten([(1), inputs.shape]))
             inputs = inputs.reshape(input_shape)
         except Exception as e:
-            raise Exception(
-                "Failed to initialize Tensorflow Tensor from inputs: %s, %s" % (e, inputs))
-        try:
-            input_name = "import/input"
-            output_name = "import/InceptionV3/Predictions/Reshape_1"
-            input_operation = self.graph.get_operation_by_name(input_name)
-            output_operation = self.graph.get_operation_by_name(output_name)
-        except Exception as e:
-            raise Exception("Failed to get signature %s" % e)
-        try:
-            with tf.Session(graph=self.graph) as sess:
-                results = sess.run(output_operation.outputs[0], {
-                    input_operation.outputs[0]: inputs
-                })
-            return {"predictions": results.tolist()}
-        except Exception as e:
-            raise Exception("Failed to predict %s" % e)
-
-    # predict with signature
-    def predict_saved_model(self, request: Dict) -> Dict:
-        inputs = []
-        try:
-            #  转成tensorflow tensor
-            inputs = np.array(request["instances"])
-            input_shape = tuple(tools.flatten([(1), inputs.shape]))
-            inputs = inputs.reshape(input_shape)
-        except Exception as e:
-            raise Exception(
-                "Failed to initialize Tensorflow Tensor from inputs: %s, %s" % (e, inputs))
+            raise Exception("Failed to initialize Tensorflow Tensor from inputs: %s, %s" % (e, inputs))
         try:
             signature_name = request['signature_name']
             signature_info = self.metadata[signature_name]
@@ -98,6 +58,8 @@ class TFModel(kfserving.KFModel):
             input_operation = self.graph.get_tensor_by_name(signature_info.input_tensor[0].name)
             output_operation = self.graph.get_tensor_by_name(signature_info.output_tensor[0].name)
 
+            sess.graph.get_tensor_by_name(in_tensor_name)
+
         except Exception as e:
             raise Exception("Failed to get signature %s" % e)
         try:
@@ -105,6 +67,8 @@ class TFModel(kfserving.KFModel):
                 results = sess.run(output_operation.outputs[0], {
                     input_operation.outputs[0]: inputs
                 })
+            # scores = sess.run(y,
+            #                   feed_dict={x: batch_xs})
             return {"predictions": results.tolist()}
         except Exception as e:
             raise Exception("Failed to predict %s" % e)
