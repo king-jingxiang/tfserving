@@ -2,3 +2,5 @@
 build
 dist
 tfserver.egg-info
+*.pyc
+tfserver/__pycache__
