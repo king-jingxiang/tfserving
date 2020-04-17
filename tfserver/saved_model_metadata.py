@@ -9,7 +9,9 @@ from tensorflow.python.tools import saved_model_utils
 class ModelMetadata():
     def __init__(self, saved_model_dir):
         self.saved_model_dir = saved_model_dir
+        self.tag_set = ""
         self.signatute_info = {}
+
 
 class SignatureInfo():
     def __init__(self, signature_name):
@@ -17,6 +19,7 @@ class SignatureInfo():
         self.input_tensor = []
         self.output_tensor = []
         self.method_name = ""
+
 
 class TensorInfo():
     def __init__(self, name, dtype, shape):
@@ -45,7 +48,8 @@ def getMetadata(saved_model_dir):
                 name, dtype, shape = _get_tensor_info(output_tensor)
                 signature_info.output_tensor.append(TensorInfo(name, dtype, shape))
             signature_info.method_name = method_name
-            model_metadata.signatute_info[signature_def_key]=signature_info
+            model_metadata.signatute_info[signature_def_key] = signature_info
+            model_metadata.tag_set = tag_set
     return model_metadata
 
 
@@ -67,8 +71,10 @@ def flatten(l):
         else:
             yield from flatten(k)
 
+
 if __name__ == '__main__':
     saved_model_dir = "/Users/jinxiang/Downloads/models/efficientNet_b3"
     data = getMetadata(saved_model_dir)
     import json
+
     print(json.dumps(data, default=lambda obj: obj.__dict__))
